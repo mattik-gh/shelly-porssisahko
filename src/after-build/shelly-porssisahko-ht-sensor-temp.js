@@ -56,6 +56,9 @@ function USER_CONFIG(inst, initialized) {
   }
 
   //Tallenentaan alkuperäiset asetukset muistiin
+  //v10: arvot otetaan talteen ennen kuin pääskripti täydentää puuttuvat asetukset oletusarvoilla.
+  //Jos asetukset on tallennettu hyvin vanhalla versiolla, josta ohjausminuutit puuttuvat, tilarivillä
+  //näkyy "ohjaus: undefined min". Tallenna silloin asetukset kerran asetussivulta, se korjaa tilanteen
   if (initialized) {
     originalConfig.hours = config.m2.c;
     originalConfig.minutes = config.m;
@@ -78,7 +81,8 @@ function USER_CONFIG(inst, initialized) {
       let age = (Date.now() - data.ts) / 1000.0 / 60.0 / 60.0;
       console.log("Lämpötila on tiedossa (päivittynyt " + age.toFixed(2) + " h sitten):", data);
 
-      if (age <= TEMPERATURE_MAX_AGE_HOURS * 60) {
+      //v10: aiemmin ikää (tunteja) verrattiin arvoon TEMPERATURE_MAX_AGE_HOURS * 60, jolloin raja oli käytännössä 720 h
+      if (age <= TEMPERATURE_MAX_AGE_HOURS) {
         //------------------------------
         // Toimintalogiikka
         // muokkaa haluamaksesi

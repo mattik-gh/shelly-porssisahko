@@ -6,8 +6,139 @@
 * https://github.com/jisotalo/shelly-porssisahko
 * 
 * License: GNU Affero General Public License v3.0 
+*
+* NOTE: This is a modified version (10.0.0) by @mattik-gh, based on version 3.4.0 of the original project.
+* It is not published or supported by the original author.
 */
 -->
+<style>
+  /* v10: styles used only by the settings page (here and not in s.css, as every file has a size limit - see test/memory.test.js) */
+  /* Backup hours: fixed width, so there are 12 hours in a row when the page has its full width */
+  #bk>label {
+    display: inline-block;
+    width: 2.9em;
+  }
+
+  @media (max-width: 480px) {
+    /* v10: backup hours 6 in a row = 4 rows (before: every hour on its own row) */
+    #bk {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    #bk>label {
+      flex: 0 0 16.66%;
+      white-space: nowrap;
+    }
+  }
+
+  /* Backup hours on a very narrow page: 4 in a row (6 do not fit with the large checkboxes of a phone) */
+  @media (max-width: 340px) {
+    #bk>label {
+      flex-basis: 25%;
+    }
+  }
+
+  .ph {
+    position: relative;
+    display: inline-block;
+    border-bottom: 2px dotted;
+    cursor: help;
+  }
+
+  .ph>span {
+    display: none;
+    position: absolute;
+    z-index: 5;
+    left: 0;
+    top: 1.8em;
+    width: 22em;
+    max-width: 80vw;
+    padding: 8px 10px;
+    background: #2c3e50;
+    color: #ecf0f1;
+    font-size: 0.85em;
+    font-weight: normal;
+    border-radius: 4px;
+  }
+
+  .ph:focus>span {
+    display: block;
+  }
+
+  /* v10: texts and rows by the price resolution (1, 2 or 4 prices an hour) - see checkResolution() */
+  .ph i {
+    display: none;
+    font-style: normal;
+  }
+
+  #cfg[data-r="1"] .r1,
+  #cfg[data-r="2"] .r2,
+  #cfg[data-r="4"] .r4 {
+    display: inline;
+  }
+
+  #cfg:not([data-r="1"]) #min-r {
+    display: none;
+  }
+
+  /* Opening by hover only with a mouse: on a touch screen the hover state stays on after a tap, and the hint would not close */
+  @media (hover: hover) {
+    .ph:hover>span {
+      display: block;
+    }
+  }
+
+  /* v10: times of the transfer fees after the fields - kept on one line (wraps as a whole on a narrow page) */
+  .fx {
+    white-space: nowrap;
+    color: #778;
+    font-size: 0.9em;
+  }
+
+  /* Message below the Save button of the settings page (the row is always there, so the page does not jump) */
+  #msg {
+    min-height: 1.4em;
+    margin-top: 4px;
+    font-size: 0.9em;
+    font-weight: bold;
+  }
+
+  /* v10: wrapping of the manual force rows on a narrow page */
+  /* nb = a part that is kept in one row (duration, buttons). bal = rows of a text are made about equally long (if the browser can) */
+  .nb {
+    white-space: nowrap;
+  }
+
+  .bal {
+    text-wrap: balance;
+  }
+
+  /* v10: text next to a checkbox tells its value (before: "ON/OFF" or nothing) - the one that matches the state is shown */
+  /* On a phone the checkbox is on its own row, and a checkbox alone looked like something was missing */
+  .yn b {
+    display: none;
+    color: green;
+  }
+
+  .yn i {
+    font-style: normal;
+    color: #778;
+  }
+
+  .yn input:checked~b {
+    display: inline;
+  }
+
+  .yn input:checked~i {
+    display: none;
+  }
+
+  /* Space between the Off button and the text after it */
+  #fo-0 {
+    margin-right: 0.3em;
+  }
+</style>
 <div id="cfg-l" class="tc">Ladataan...</div>
 <div id="cfg" style="display: none;">
   <div class="tc b" style="font-size: 1.2em;">YLEISET ASETUKSET</div>
@@ -24,17 +155,45 @@
       </td>
     </tr>
     <tr>
-      <td class="w180">Sähkön ALV</td>
+      <td><b class="ph" tabindex="0">Ohjausten määrä<span>Ohjaus on sääntö, joka kytkee yhtä tai useampaa lähtöä sähkön hinnan mukaan. Jokainen ohjaus vie muistia, joten valitse vain tarvittava määrä.</span></b></td>
       <td>
-        <input type="text" id="vat" size="3"> %
+        <select id="cnt">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
       </td>
     </tr>
     <tr>
-      <td>Siirtomaksut</td>
+      <td><b class="ph" tabindex="0">Historian pituus<span>Jaetaan käytössä olevien ohjausten kesken.</span></b></td>
       <td>
-        07-22: <input type="text" id="day" size="3"> c/kWh
+        <select id="hist">
+          <option value="0">0 (ei historiaa)</option>
+          <option value="24">24 riviä</option>
+          <option value="48">48 riviä</option>
+          <option value="72">72 riviä</option>
+          <option value="96">96 riviä</option>
+        </select>
+      </td>
+    </tr>
+    <tr>
+      <td class="w180">Sähkön ALV</td>
+      <td>
+        <input type="text" id="vat" size="5"> %
+      </td>
+    </tr>
+    <tr>
+      <td><b class="ph" tabindex="0">Siirtomaksut<span>Aikasiirrossa päivä- ja yömaksu ovat voimassa joka päivä kellonajan mukaan. Kausisiirrossa päivämaksu on voimassa vain talvikauden arkipäivinä (ma-la), muina aikoina "muu aika" -maksu. Päivät ja kellonajat näkyvät maksujen perässä. Niitä voi tarvittaessa muuttaa etäasetusten skriptillä.</span></b></td>
+      <td>
+        <select id="tt">
+          <option value="0">Aikasiirto</option>
+          <option value="1">Kausisiirto</option>
+        </select>
         <div class="mt10">
-          22-07: <input type="text" id="night" size="3"> c/kWh
+          <input type="text" id="day" size="5"> c/kWh <span id="tt-d" class="fx"></span>
+        </div>
+        <div class="mt10">
+          <input type="text" id="night" size="5"> c/kWh <span id="tt-n" class="fx"></span>
         </div>
       </td>
     </tr>
@@ -45,13 +204,13 @@
     <tr>
       <td class="w180">Käytössä</td>
       <td>
-        <label><input type="checkbox" id="en"> ON/OFF</label>
+        <label class="yn"><input type="checkbox" id="en"> <b>Kyllä</b><i>Ei</i></label>
       </td>
     </tr>
     <tr>
       <td>Nimi</td>
       <td>
-        <input type="text" id="n">
+        <input type="text" id="n" maxlength="30">
       </td>
     </tr>
     <tr>
@@ -62,13 +221,14 @@
       </td>
     </tr>
     <tr>
-      <td>Ohjattavat lähdöt</td>
+      <td><b class="ph" tabindex="0">Ohjattavat lähdöt<span>0 = Ensimmäinen lähtö, useampi pilkulla erotettuna (0,1)</span></b></td>
       <td>
-        <input type="text" id="outs" size="4">
+        <input type="text" id="outs" size="9" maxlength="19">
+        <span id="outs-h" style="display:inline-block;font-size:0.75em;color:red"></span>
       </td>
     </tr>
     <tr>
-      <td>Lähdön ohjaus</td>
+      <td><b class="ph" tabindex="0">Lähdön ohjaus<span>Aina tarkistaessa: lähtö asetetaan uudelleen tunnin, 30 min tai 15 min välein (hinnan tarkkuuden mukaan). Vain muuttuessa: lähtö asetetaan vain, kun ohjauksen tila vaihtuu, joten lähtöä voi välillä ohjata myös muualta.</span></b></td>
       <td>
         <select id="oc">
           <option value="0">Aina tarkistaessa</option>
@@ -77,29 +237,39 @@
       </td>
     </tr>
     <tr>
-      <td>Ohjausminuutit</td>
+      <td><b class="ph" tabindex="0">Hinnan tarkkuus<span><i class="r1">Lähtö voi kytkeytyä kerran tunnissa.</i><i class="r2">Lähtö voi kytkeytyä kahdesti tunnissa.</i><i class="r4">Lähtö voi kytkeytyä jopa neljästi tunnissa.</i></span></b></td>
+      <td>
+        <select id="q">
+          <option value="0">Tunnin keskiarvo</option>
+          <option value="2">30 min keskiarvo</option>
+          <option value="1">15 min hinta</option>
+        </select>
+      </td>
+    </tr>
+    <tr id="min-r">
+      <td><b class="ph" tabindex="0">Ohjausminuutit<span>Lähtö on päällä vain tunnin ensimmäiset minuutit (60 = koko tunnin).</span></b></td>
       <td>
         <input type="text" id="min" size="3"> min
       </td>
     </tr>
     <tr>
-      <td>Käänteinen ohjaus</td>
+      <td><b class="ph" tabindex="0">Käänteinen ohjaus<span>Lähtö on pois, kun ohjaus on päällä, ja päinvastoin.</span></b></td>
       <td>
-        <input type="checkbox" id="inv">
+        <label class="yn"><input type="checkbox" id="inv"> <b>Kyllä</b><i>Ei</i></label>
       </td>
     </tr>
     <tr>
-      <td>Varmuustunnit</td>
+      <td><b class="ph" tabindex="0">Varmuustunnit<span>Tunnit, joina lähtö on päällä, jos hintoja ei ole saatu.</span></b></td>
       <td id="bk"></td>
     </tr>
     <tr>
-      <td>Hätätilaohjaus</td>
+      <td><b class="ph" tabindex="0">Hätätilaohjaus<span>Lähdön tila, jos kellonaikaa ei ole saatu (esim. verkkohäiriö käynnistyksen jälkeen).</span></b></td>
       <td>
-        <label><input type="checkbox" id="err"> ON/OFF</label>
+        <label class="yn"><input type="checkbox" id="err"> <b>Päällä</b><i>Pois</i></label>
       </td>
     </tr>
     <tr>
-      <td>Pakko-ohjaukset</td>
+      <td>Pakko-ohjatut tunnit</td>
       <td>
         <details class="ml5">
           <summary>Näytä/piilota</summary>
@@ -109,30 +279,35 @@
     </tr>
   </table>
 
+  <div id="mo0">
   <div class="mt10 b">KÄSIOHJAUS</div>
   <table class="m cc">
     <tr>
       <td class="w180">Ohjaus</td>
       <td>
-        <label><input type="checkbox" id="m0-cmd"> ON/OFF</label>
+        <label class="yn"><input type="checkbox" id="m0-cmd"> <b>Päällä</b><i>Pois</i></label>
       </td>
     </tr>
   </table>
+  </div>
 
+  <div id="mo1">
   <div class="mt10 b">HINTARAJA</div>
   <table class="m cc">
     <tr>
-      <td class="w180">Hintaraja</td>
+      <td class="w180"><b class="ph" tabindex="0">Hintaraja<span>Lähtö on päällä, kun hinta on enintään raja. Avg = enintään päivän keskihinta.</span></b></td>
       <td>
-        <input type="text" id="m1-lim" size="3"> c/kWh
+        <input type="text" id="m1-lim" size="5"> c/kWh
       </td>
     </tr>
   </table>
+  </div>
 
+  <div id="mo2">
   <div class="mt10 b">JAKSON HALVIMMAT TUNNIT</div>
   <table class="m cc">
     <tr>
-      <td class="w180">Ajanjakso</td>
+      <td class="w180"><b class="ph" tabindex="0">Ajanjakso<span>Jakso, josta valitaan alla oleva tuntimäärä halvimpia aikoja.</span></b></td>
       <td>
         <select id="m2-per">
           <option value="24">24h</option>
@@ -158,9 +333,15 @@
       </td>
     </tr>
     <tr>
-      <td>Tuntimäärä</td>
+      <td><b class="ph" tabindex="0">Tuntimäärä<span><i class="r1">Kokonaiset tunnit.</i><i class="r2">0.5 h välein (esim. 1.5).</i><i class="r4">0.25 h välein (esim. 1.25).</i></span></b></td>
       <td>
-        <input type="text" id="m2-cnt" size="3"> h
+        <input type="text" id="m2-cnt" size="5"> h
+      </td>
+    </tr>
+    <tr>
+      <td><b class="ph" tabindex="0">Peräkkäiset<span>Valitaan halvimmat peräkkäiset ajat.</span></b></td>
+      <td>
+        <label class="yn"><input type="checkbox" id="m2-sq"> <b>Kyllä</b><i>Ei</i></label>
       </td>
     </tr>
     <tr class="m2-c2">
@@ -170,38 +351,58 @@
       </td>
     </tr>
     <tr class="m2-c2">
-      <td>Tuntimäärä 2</td>
+      <td><b class="ph" tabindex="0">Tuntimäärä 2<span><i class="r1">Kokonaiset tunnit.</i><i class="r2">0.5 h välein (esim. 1.5).</i><i class="r4">0.25 h välein (esim. 1.25).</i></span></b></td>
       <td>
-        <input type="text" id="m2-cnt2" size="3"> h
+        <input type="text" id="m2-cnt2" size="5"> h
+      </td>
+    </tr>
+    <tr class="m2-c2">
+      <td><b class="ph" tabindex="0">Peräkkäiset<b>&nbsp;2</b><span>Valitaan halvimmat peräkkäiset ajat.</span></b></td>
+      <td>
+        <label class="yn"><input type="checkbox" id="m2-sq2"> <b>Kyllä</b><i>Ei</i></label>
       </td>
     </tr>
     <tr>
-      <td>Peräkkäiset</td>
+      <td><b class="ph" tabindex="0">Aina päällä -raja<span>Lähtö on aina päällä, kun hinta on enintään raja. Avg = enintään päivän keskihinta.</span></b></td>
       <td>
-        <input type="checkbox" id="m2-sq">
+        <input type="text" size="5" id="m2-lim"> c/kWh
       </td>
     </tr>
     <tr>
-      <td>Aina päällä -raja</td>
+      <td><b class="ph" tabindex="0">Maksimihinta<span>Lähtö ei ole päällä, kun hinta on yli rajan. Ohittaa myös aina päällä -rajan. Avg = yli päivän keskihinnan.</span></b></td>
       <td>
-        <input type="text" size="3" id="m2-lim"> c/kWh
-      </td>
-    </tr>
-    <tr>
-      <td>Maksimihinta</td>
-      <td>
-        <input type="text" size="3" id="m2-m"> c/kWh
+        <input type="text" size="5" id="m2-m"> c/kWh
       </td>
     </tr>
   </table>
+  </div>
   <div class="tc mt10">
     <input id="save" type="button" value="Tallenna">
+    <div id="msg"></div>
   </div>
 
-  <div class="tc mt10 b">TOIMINNOT</div>
-  <div class="tc">
-    <input class="mt10" type="button" id="force" value="Pakko-ohjaus"><br>
-    <input class="mt10" type="button" onclick="window.open(`/`)" value="Shellyn hallinta">
+  <div class="mt10 b">TILAPÄINEN PAKKO-OHJAUS</div>
+  <table class="m cc">
+    <tr>
+      <td class="w180">Lähtö nyt</td>
+      <td class="bal">
+        <span id="fo-s"></span>
+        <input type="button" id="fo-c" value="Peru" style="display:none">
+      </td>
+    </tr>
+    <tr>
+      <td>Pakotettu tila</td>
+      <td>
+        <span class="nb">Pidä lähtö <input type="text" id="fo-h" size="5"> tuntia</span>
+        <span class="nb"><input type="button" id="fo-1" value="Päällä">
+        <input type="button" id="fo-0" value="Pois"></span>
+        <span class="nb">hinnasta riippumatta.</span>
+      </td>
+    </tr>
+  </table>
+
+  <div class="tc" style="margin-top:25px">
+    <input type="button" onclick="window.open(`/`)" value="Shellyn hallinta">
   </div>
 </div>
 

@@ -6,6 +6,9 @@
 * https://github.com/jisotalo/shelly-porssisahko
 * 
 * License: GNU Affero General Public License v3.0 
+*
+* NOTE: This is a modified version (10.0.0) by @mattik-gh, based on version 3.4.0 of the original project.
+* It is not published or supported by the original author.
 */
 -->
 <table class="m cc">
@@ -31,33 +34,42 @@
     <td id="s-mode"></td>
   </tr>
   <tr>
-    <td>Tila</td>
+    <td data-t="rivi">Tila</td>
     <td id="s-info"></td>
   </tr>
 </table>
 
-<div class="flx flx-mob-col">
-  <div class="tc flx1 mr5">
-    <div class="tc mt10"><b>Sähkö tänään</b></div>
-    <table id="s-pi0">
-    </table>
+<div class="ds mt10">
+  <button id="s-d0">Tänään</button><button id="s-d1">Huomenna</button>
+</div>
 
-    <div class="tc mt10"><b>Toteutuma tänään</b></div>
-    <table class="tc" id="s-p0">
+<div class="gl">
+  <b>c/kWh</b>
+  <div>
+    <span><i class="e"></i>Energia</span>
+    <span><i></i>Siirto</span>
+    <span><i class="on"></i>Ohjaus päällä <span id="s-gt"></span></span>
+  </div>
+</div>
+
+<div id="s-g"></div>
+
+<table class="tc mt10" id="s-pi">
+</table>
+
+<div class="flx flx-mob-col mt10">
+  <div class="tc flx1 mr5">
+    <table class="tc" id="s-pa">
     </table>
   </div>
 
   <div class="tc flx1 ml5">
-    <div class="tc mt10"><b>Sähkö huomenna</b></div>
-    <table id="s-pi1">
-    </table>
-
-    <div class="tc mt10"><b>Toteutuma huomenna</b></div>
-    <table id="s-p1">
+    <table class="tc" id="s-pb">
     </table>
   </div>
 </div>
 
+<sup id="s-bn">Taustaväri vaihtuu jakson vaihtuessa.</sup>
 <sup>**pakko-ohjaus</sup>
 <div id="s-v" class="tc"></div>
 

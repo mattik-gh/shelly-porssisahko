@@ -2,3 +2,8 @@ node_modules
 dist/statics
 REST-requests
 log.txt
+.DS_Store
+
+# Paikalliset apuohjelmat, mallikuvat ja varmuuskopiot (ei julkaista)
+.scratch/
+src/statics/dev.local.js

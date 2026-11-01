@@ -5,14 +5,17 @@
  * https://github.com/jisotalo/shelly-porssisahko
  * 
  * License: GNU Affero General Public License v3.0 
+ *
+ * NOTE: This is a modified version (10.0.0) by @mattik-gh, based on version 3.4.0 of the original project.
+ * It is not published or supported by the original author.
  * 
  * This file is loaded only during local development
  */
-/** URL of the shelly */
-URL = "http://192.168.68.113";
+/** URL of the shelly - the address of your own device is given in dev.local.js (not in version control), see README */
+SRV = "http://192.168.1.50";
 
-/** URL of the logic script */
-URLS = `${URL}/script/1`;
+/** URL of the logic script (set after dev.local.js has been loaded) */
+URLS = "";
 
 /**
  * debug function that is printing to console only when DEV is active
@@ -48,4 +51,11 @@ me = () => {
  */
 window.addEventListener("error", (e) => console.error("Error at line:", e.lineno), false);
 
-updateLoop();
+/**
+ * Local overrides (dev.local.js, not in version control) - the page is started after it has been loaded (or not found)
+ */
+let local = reqJs("dev.local.js");
+local.onload = local.onerror = () => {
+  URLS = `${SRV}/script/1`;
+  updateLoop();
+};

@@ -7,6 +7,10 @@
  * Mitä kylmempi lämpötila, sitä useampi halvempi tunti ohjataan 
  * ja samalla myös ohjausminuuttien määrää kasvatetaan.
  */
+//Lämpötila-anturin numero (Add-onin anturit ovat 100-104, ensimmäinen yleensä 100)
+//v10: uusi. Numeron näkee Shellyn hallinnasta anturin kohdalta, jos antureita on useampi
+let TEMP_SENSOR = 100;
+
 //Mitä ohjausta hienosäädetään (0 = ohjaus #1, 1 = ohjaus #2 jne.)
 let INSTANCE = 0;
 
@@ -46,11 +50,11 @@ function USER_CONFIG(inst, initialized) {
   let minutes = originalConfig.minutes;
 
   try {
-    let temp = Shelly.getComponentStatus("temperature:100");
+    let temp = Shelly.getComponentStatus("temperature:" + TEMP_SENSOR);
 
     if (!temp) {
-      state.si[inst].str = "Lämpötilaohjauksen virhe - anturia 100 ei löytynyt";
-      throw new Error("Lämpötila-anturia 100 ei löytynyt");
+      state.si[inst].str = "Lämpötilaohjauksen virhe - anturia " + TEMP_SENSOR + " ei löytynyt";
+      throw new Error("Lämpötila-anturia " + TEMP_SENSOR + " ei löytynyt");
     }
 
     if (temp.tC == null) {

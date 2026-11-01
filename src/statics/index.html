@@ -6,10 +6,13 @@
 * https://github.com/jisotalo/shelly-porssisahko
 * 
 * License: GNU Affero General Public License v3.0 
+*
+* NOTE: This is a modified version (10.0.0) by @mattik-gh, based on version 3.4.0 of the original project.
+* It is not published or supported by the original author.
 */
 -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 
 <head>
   <meta charset="utf-8">
@@ -25,7 +28,7 @@
         <option value="0">Ohjaus #1</option>
       </select>
     </div>
-    <div id="copy">&copy; Jussi Isotalo (<a href="https://jisotalo.fi" target="_blank">jisotalo.fi</a>)</div>
+    <div id="copy"><a id="l-fi">FI</a> | <a id="l-en">EN</a> &middot; &copy; Jussi Isotalo (<a href="https://jisotalo.fi" target="_blank">jisotalo.fi</a>)</div>
   </div>
 
   <div class="tabs">
@@ -50,6 +53,49 @@
     const DEV = window.location.origin.includes("localhost");
 
     let d = document;
+
+    /*
+     * v10: new - hints of the settings (class ph) on a touch screen
+     * A hint opens when its name is tapped (focus). iPhone does not move the focus away when the page is tapped elsewhere,
+     * so the hint would stay open. A tap anywhere closes the open hint - also a tap on the same name or on the hint itself.
+     */
+    d.addEventListener("touchstart", (e) => {
+      let a = d.activeElement;
+
+      if (a.className == "ph") {
+        a.blur();
+
+        if (a.contains(e.target)) {
+          /* The same name again: closing only (without this the tap would open it again) */
+          e.preventDefault();
+        }
+      }
+    }, { passive: false });
+
+    /*
+     * v10: language of the user interface ("fi" or "en")
+     * Selected by the language of the browser - the user can change it (saved to the browser, not to the device)
+     * Texts are in Finnish in the code. TR has the translations (loaded from en.js only if needed)
+     */
+    let LANG = "fi";
+    let TR = {};
+
+    try {
+      LANG = (localStorage.getItem("lang") || navigator.language || "fi").slice(0, 2) == "fi" ? "fi" : "en";
+    } catch (err) { }
+
+    d.documentElement.lang = LANG;
+
+    ["fi", "en"].forEach(l => {
+      let e = d.querySelector("#l-" + l);
+      e.style = LANG == l ? "font-weight:bold;text-decoration:none" : "cursor:pointer";
+      e.onclick = () => {
+        try {
+          localStorage.setItem("lang", l);
+        } catch (err) { }
+        location.reload();
+      };
+    });
     let createElement = (e) => d.createElement(e);
     let appendChild = (e) => d.body.appendChild(e);
 
@@ -60,6 +106,7 @@
       let script = createElement("script");
       script.src = DEV ? f : `?r=${f.replace("tab-", "")}`;
       appendChild(script);
+      return script;
     }
 
     /*Loading script and css based on if we are running on shelly or dev environment*/
@@ -68,7 +115,17 @@
     css.href = DEV ? "s.css" : "?r=s.css";
     appendChild(css);
 
-    reqJs("s.js");
+    /*
+     * v10: translations are loaded before s.js and one at a time
+     * (the device keeps a file in memory until it is sent - two large files at the same time raise the memory peak)
+     * If loading fails, the user interface is in Finnish
+     */
+    if (LANG == "en") {
+      let e = reqJs("en.js");
+      e.onload = e.onerror = () => reqJs("s.js");
+    } else {
+      reqJs("s.js");
+    }
   </script>
 </body>
 

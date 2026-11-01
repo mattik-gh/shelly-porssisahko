@@ -5,6 +5,9 @@
  * https://github.com/jisotalo/shelly-porssisahko
  * 
  * License: GNU Affero General Public License v3.0
+ *
+ * NOTE: This is a modified version (10.0.0) by @mattik-gh, based on version 3.4.0 of the original project.
+ * It is not published or supported by the original author.
  * 
  * This file is used for the build/minify process only.
  * NOTE: work-in-progress
@@ -20,11 +23,28 @@ const path = require('path');
 const UglifyJS = require("uglify-js");
 const minify = require('html-minifier').minify;
 const zlib = require('node:zlib');
-const { promisify } = require('node:util');
+//v10: static files are compressed with Zopfli (WebAssembly version, no compiler needed).
+//The result is standard gzip that every browser decompresses, but 1-3 % smaller than with zlib -
+//the largest static files have a size limit (see test/memory.test.js)
+const { gzipAsync: zopfliGzip } = require('@gfx/zopfli');
+
+/**
+ * v10: compresses a static file (gzip with Zopfli) and returns it as base64.
+ * The result is checked by decompressing it with zlib, so a broken file can never get into the script
+ */
+async function gzipStatic(data) {
+  const zipped = Buffer.from(await zopfliGzip(Buffer.from(data), { numiterations: 15 }));
+
+  if (!zlib.gunzipSync(zipped).equals(Buffer.from(data))) {
+    throw new Error("gzipStatic(): decompressed data differs from the original");
+  }
+  return Buffer.from(zipped.toString('base64'), 'utf8');
+}
 const dgram = require('node:dgram');
 
 //Settings
-const BASE_URL = "http://192.168.68.113";
+//Address of the device for uploads: environment variable SHELLY_URL (see README, Skriptin kääntäminen)
+const BASE_URL = process.env.SHELLY_URL || "http://192.168.1.50";
 const RPC_URL = `${BASE_URL}/rpc`;
 const MAX_CODE_CHUNK_SIZE = 1024;
 const GZIP = true;
@@ -211,6 +231,26 @@ const createDistFile = async (filePath, distPath, isShellyScript) => {
   let gzippedBuffer = Buffer.alloc(0);
 
   if (filePath.endsWith(".js")) {
+    //Shelly scripts: let and const are changed to var before minifying (not needed for the browser files)
+    //Older firmware (for example 1.3.2 on Gen 2) handles let and const like var (no block scope).
+    //The minifier would otherwise give a variable inside a block the same name as a variable outside it,
+    //and on such firmware the inner one would overwrite the outer one.
+    //With var the minifier knows the real scope, so the code works the same on all firmware versions.
+    if (isShellyScript) {
+      data = UglifyJS.parse(data).transform(new UglifyJS.TreeTransformer(function (node) {
+        if (node instanceof UglifyJS.AST_Let || node instanceof UglifyJS.AST_Const) {
+          return new UglifyJS.AST_Var({
+            start: node.start,
+            end: node.end,
+            definitions: node.definitions.map(def => {
+              def.name = new UglifyJS.AST_SymbolVar(def.name);
+              return def;
+            })
+          });
+        }
+      })).print_to_string({ comments: "some" });
+    }
+
     const minified = UglifyJS.minify(data, {
       toplevel: true,
       output: {
@@ -246,14 +286,17 @@ const createDistFile = async (filePath, distPath, isShellyScript) => {
     }
 
     if (GZIP && !isShellyScript) {
-      const gzip = promisify(zlib.gzip);
-      const zippedData = await gzip(outputBuffer);
-      gzippedBuffer = Buffer.from(zippedData.toString('base64'), 'utf8');
+      gzippedBuffer = await gzipStatic(outputBuffer);
     }
 
     log(`createDistFile(): Minifying script "${filePath}" done - size is now ${(100.0 - (minified.code.length / data.length * 100.0)).toFixed(0)}% smaller`);
 
   } else if (filePath.endsWith(".html") || filePath.endsWith(".css")) {
+    //CSS comments (including the license header) are removed - the HTML minifier does not touch them in a .css file
+    if (filePath.endsWith(".css")) {
+      data = data.replace(/\/\*[\s\S]*?\*\//g, "");
+    }
+
     const minified = minify(data, {
       removeAttributeQuotes: true,
       preserveLineBreaks: false,
@@ -284,9 +327,7 @@ const createDistFile = async (filePath, distPath, isShellyScript) => {
     outputBuffer = Buffer.from(trimmedData, 'utf8');
 
     if (GZIP) {
-      const gzip = promisify(zlib.gzip);
-      const zippedData = await gzip(outputBuffer);
-      gzippedBuffer = Buffer.from(zippedData.toString('base64'), 'utf8');
+      gzippedBuffer = await gzipStatic(outputBuffer);
     }
 
   } else {

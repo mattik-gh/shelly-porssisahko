@@ -4,7 +4,12 @@
   "description": "This is used for building/minifying shelly-porssisahko",
   "main": "shelly-builder.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test \"test/*.test.js\" \"test/addons/*.test.js\" && node test/run-dist.js",
+    "test:src": "node --test \"test/*.test.js\" \"test/addons/*.test.js\"",
+    "test:dist": "node test/run-dist.js",
+    "test:addons": "node --test \"test/addons/*.test.js\"",
+    "test:addons:alone": "node --test --test-name-pattern=\": yksin\" \"test/addons/*.test.js\"",
+    "test:device": "node test/device/run.js",
     "build": "node shelly-builder.js --build shelly-porssisahko.js && npm run after-build",
     "upload": "node shelly-builder.js --upload shelly-porssisahko.js",
     "start": "npm run build && npm run upload",
@@ -19,5 +24,8 @@
     "html-minifier": "^4.0.0",
     "serve": "^14.2.1",
     "uglify-js": "^3.17.4"
+  },
+  "devDependencies": {
+    "@gfx/zopfli": "^1.0.15"
   }
 }

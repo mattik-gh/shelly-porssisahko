@@ -29,6 +29,13 @@ let originalConfig = {
 let activeDay = -1;
 
 /**
+ * true, jos edellinen lämpötilojen haku epäonnistui
+ * Tällöin ohjataan asetusten mukaan ja haetaan uudelleen vasta seuraavalla logiikan ajolla
+ */
+//v10: uusi - aiemmin epäonnistunut haku jätti lähdön kokonaan ohjaamatta
+let failed = false;
+
+/**
  * Päivän matalin ja korkein lämpötila
  */
 let tempData = {
@@ -90,6 +97,15 @@ function USER_OVERRIDE(inst, cmd, callback) {
   try {
     if (activeDay == new Date().getDate()) {
       console.log("Lämpötilat haettu jo tälle päivälle -> ei muutoksia:", tempData);
+      callback(cmd);
+      return;
+    }
+
+    if (failed) {
+      //Haku epäonnistui juuri äsken -> ohjataan alkuperäisillä asetuksilla
+      //Lämpötilat haetaan uudelleen seuraavalla logiikan ajolla
+      console.log("Lämpötiloja ei saatu -> ohjataan asetusten mukaan");
+      failed = false;
       callback(cmd);
       return;
     }
@@ -163,6 +179,7 @@ function USER_OVERRIDE(inst, cmd, callback) {
       } catch (err) {
         state.si[inst].str = "Virhe lämpötilaohjauksessa:" + err;
         console.log("Virhe lämpötiloja käsitellessä:", err);
+        failed = true;
       }
 
       //Asetetaan arvot asetuksiin
